@@ -1,0 +1,135 @@
+import psycopg2
+import networkx as nx
+import matplotlib.pyplot as plt
+from node2vec import Node2Vec
+import numpy as np 
+from sklearn import metrics
+from sklearn.cluster import DBSCAN
+
+conn = psycopg2.connect(host="localhost", dbname="test", user="ramanbaghel", password="birne", port=5432)
+cur = conn.cursor()
+
+cur.execute('SELECT ID, birth_date FROM patients')
+G = nx.Graph()
+
+# for row in cur:
+#     patient_id = row[0]
+#     birth_date = row[1]
+
+#     G.add_node(patient_id, label=f"Patient_ID: {patient_id}")
+#     G.add_node(birth_date, label=f"BIRTHDATE: {birth_date}")
+    
+#     G.add_edge(patient_id, birth_date, label="has_birthdate")
+
+cur.execute('SELECT Id, PATIENT, START, STOP, DESCRIPTION, REASONDESCRIPTION FROM careplans')
+for row in cur:
+ G.add_node(row[0], label=f"ID: {row[0]}")
+ G.add_node(row[1], label=f"PATIENT: {row[1]}")
+
+# Concatenate START and STOP values
+ date_range_label = f"Date_range: {row[2]} - {row[3]}"
+ G.add_node(date_range_label)
+
+# G.add_node(row[4], label=f"TREATMENT: {row[4]}")
+# if row[5] is not None:
+#         G.add_node(row[5], label=f"DIAGNOSE: {row[5]}")
+#         G.add_edge(row[0], row[5], label="diagnose")
+
+G.add_edge(row[1], row[0], label="uniqueid")
+G.add_edge(row[0], date_range_label, label="daterange")
+# G.add_edge(row[0], row[4], label="treatment")
+
+# cur.execute('SELECT Id, PATIENT, START, STOP, REASONDESCRIPTION FROM encounters LIMIT 1')
+
+# for row in cur:
+#     G.add_node(row[0], label=f"ID2:{row[0]}")
+#     G.add_node(row[0], label=f"PATIENT: {row[1]}")
+#     date_range_label = f"Date_range: {row[2]} - {row[3]}"
+#     G.add_node(date_range_label)
+#     if row[4] is not None:
+#         G.add_node(row[4], label=f"DIAGNOSE: {row[4]}")
+#         G.add_edge(row[0], row[4], label="diagnose")
+
+#     G.add_edge(row[0], row[1], label="uniqueid")
+#     G.add_edge(row[0], date_range_label, label="daterange")
+
+# jaccard_coefficients = []
+
+# # Iterate through pairs of nodes and calculate Jaccard coefficient
+# for node1 in G.nodes():
+#     for node2 in G.nodes():
+#         if node1 != node2 and not G.has_edge(node1, node2):
+#             neighbors1 = set(G.neighbors(node1))
+#             neighbors2 = set(G.neighbors(node2))
+#             jaccard_coefficient = len(neighbors1.intersection(neighbors2)) / len(neighbors1.union(neighbors2))
+
+#             # Add edge if Jaccard coefficient is above a certain threshold
+#             if jaccard_coefficient > 0.5:
+#                 G.add_edge(node1, node2, label="jaccard", weight=jaccard_coefficient)
+#                 jaccard_coefficients.append(jaccard_coefficient)
+#                 print(f"Added edge between {node1} and {node2} with Jaccard coefficient {jaccard_coefficient}")
+
+
+# Print the range of Jaccard coefficients
+# if jaccard_coefficients:                
+#  min_jaccard = min(jaccard_coefficients)
+#  max_jaccard = max(jaccard_coefficients)
+
+#  'print(f"Jaccard coefficient between {node1} and {node2}: {jaccard_coefficient}")
+  
+#  print(f"Minimum Jaccard coefficient: {min_jaccard}")
+#  print(f"Maximum Jaccard coefficient: {max_jaccard}") 
+# else:
+#     print("No Jaccard coefficients calculated.")'
+
+
+# def generate_node2vec_embeddings(graph):
+#     node2vec = Node2Vec(graph, dimensions=64, walk_length=60, num_walks=400, workers=1)
+#     model = node2vec.fit(window=10, min_count=1)
+#     return {node: model.wv[str(node)] for node in graph.nodes()}
+
+# embeddings = generate_node2vec_embeddings(G)
+
+# Find the number of nodes in the graph
+node_count = G.number_of_nodes()
+print(f"Number of nodes in the graph: {node_count}")
+
+     
+# X = np.array(list(embeddings.values()))
+# for eps in [1.5]:
+#     for min_samples in [3, 4, 5]:
+#         db = DBSCAN(eps=eps, min_samples=min_samples).fit(X)
+#         labels = db.labels_
+#         unique_labels = np.unique(labels)
+#         n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+#         n_noise_ = list(labels).count(-1)
+
+#         print(f'Parameters: eps={eps}, min_samples={min_samples}')
+#         print(f'Number of clusters: {n_clusters_}')
+#         print(f'Number of noise points: {n_noise_}')
+#         print(f'Unique labels: {unique_labels}')
+
+
+# # Assign colors based on cluster labels
+# colors = [label + 1 if label != -1 else 0 for label in labels]
+
+
+# Draw the graph with node colors
+plt.figure(figsize=(25, 25))
+
+pos = nx.spring_layout(G)
+nx.draw(G, pos, with_labels=True, cmap=plt.cm.Set1, node_size=200, font_size=8, font_color='black', font_weight='bold', node_color='darkgreen', edge_color='black', linewidths=1.5, alpha=0.7)
+# nx.draw(G, pos, with_labels=True, node_color=colors, cmap=plt.cm.Set1, node_size=300)
+edge_labels = {(u, v): G[u][v].get('label', '') for u, v in G.edges()}
+nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=10, font_color='darkblue', label_pos=0.5)
+
+
+#plt.savefig(f"graph_eps_{1.5}_min_samples_{3}.png", format="PNG", dpi=100)
+plt.savefig("nodes.png", format="PNG", dpi=200)
+plt.show(block=False)
+
+print("All problems are deleted from the workspace")
+
+conn.commit()
+cur.close()
+conn.close()
